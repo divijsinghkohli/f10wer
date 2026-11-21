@@ -1,0 +1,482 @@
+<title>Flowers for Hargun</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@700&family=VT323&display=swap">
+<style>
+/* Layout: a single terminal window on a dark desk. The bouquet renders as colored text into the window body; prompt lines sit underneath. */
+:root {
+  --desk: #0b0910;
+  --win: #110e17;
+  --bar: #1b1623;
+  --line: #2a2334;
+  --fg: #ece3f2;
+  --dim: #8b809a;
+  --rose: #ff86b0;
+  --leaf: #86e3a6;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --pix: "VT323", "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--desk);
+  color: var(--fg);
+  font-family: var(--mono);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px;
+  overflow: hidden;
+}
+.win {
+  width: 100%;
+  max-width: 1000px;
+  height: 100%;
+  max-height: 840px;
+  display: flex;
+  flex-direction: column;
+  background: var(--win);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .65);
+  overflow: hidden;
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--bar);
+  border-bottom: 1px solid var(--line);
+}
+.dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.d1 { background: #ff5f57; } .d2 { background: #febc2e; } .d3 { background: #28c840; }
+.bar .t {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--pix);
+  font-size: 19px;
+  color: var(--dim);
+  margin-right: 52px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.screen { flex: 1; min-height: 0; position: relative; cursor: grab; }
+.screen:active { cursor: grabbing; }
+.screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, .16) 2px 3px),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, .45) 100%);
+}
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.term {
+  padding: 10px 16px 14px;
+  font-family: var(--pix);
+  font-size: 22px;
+  line-height: 1.15;
+  border-top: 1px solid var(--line);
+}
+.p { color: var(--leaf); }
+.msg { color: var(--rose); min-height: 1.15em; font-size: 1.25em; }
+.sig { margin-top: 4px; }
+.gap { display: inline-block; width: 2em; }
+.cursor {
+  display: inline-block;
+  width: .55em;
+  height: .95em;
+  background: var(--fg);
+  vertical-align: -2px;
+  margin-left: 2px;
+  animation: blink 1s steps(1) infinite;
+}
+.keys { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; font-size: 18px; color: var(--dim); }
+.keys button {
+  font: inherit;
+  color: var(--dim);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 8px;
+  cursor: pointer;
+}
+.keys button:hover { color: var(--fg); border-color: var(--dim); }
+.keys button:focus-visible { outline: 2px solid var(--rose); outline-offset: 2px; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
+@media (max-width: 520px) {
+  .term { font-size: 19px; }
+  .bar .t { font-size: 16px; margin-right: 0; }
+}
+</style>
+
+<div class="win">
+  <div class="bar">
+    <span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span>
+    <div class="t" id="title">tulips — bash</div>
+  </div>
+  <div class="screen" id="screen">
+    <canvas id="cv" role="img" aria-label="A bouquet of tulips drawn in colored text characters, slowly turning"></canvas>
+  </div>
+  <div class="term">
+    <div><span class="p">~ $</span> ./bouquet</div>
+    <div class="msg"><span id="typed"></span><span class="cursor" id="cur1"></span></div>
+    <div class="sig" id="sig" hidden><span class="p">To:</span> Hargun <span class="gap"></span><span class="p">Love:</span> Divij</div>
+    <div class="keys">
+      <button id="bPause" type="button">space · pause</button>
+      <button id="bMode" type="button">p · pixel mode</button>
+      <span>drag to spin</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- things you might want to change ----------
+  const MESSAGE = "Some flowers for my flower";
+
+  // ---------- palette: 4 shades per material, dark to light ----------
+  const PAL = {
+    red:    ['#4f0d1c', '#9e1631', '#e8344b', '#ff9a94'],
+    pink:   ['#561a3c', '#ad3a73', '#f06aa8', '#ffc6de'],
+    yellow: ['#5e420a', '#c48a12', '#f6c933', '#fff2a8'],
+    purple: ['#2b1a4c', '#5d3a9c', '#9a6fe0', '#dac8ff'],
+    orange: ['#5f2408', '#bf5219', '#f68c3d', '#ffd3a6'],
+    cream:  ['#4d4852', '#9f97a8', '#e7e0ec', '#ffffff'],
+    stem:   ['#10321b', '#22662e', '#3fa244', '#a2e57f'],
+    leaf:   ['#0d3727', '#1d6b45', '#35a767', '#93e2aa'],
+    paper:  ['#3a2514', '#77502f', '#b8834f', '#ecca9c'],
+    ribbon: ['#470a1a', '#981838', '#df365e', '#ff9cb2'],
+  };
+  const MATS = Object.keys(PAL);
+  const M = {}; MATS.forEach((k, i) => (M[k] = i));
+  const COLORS = MATS.flatMap(k => PAL[k]);
+  const RAMP = ".,-~:;=!*#$@";
+  const SPARK_COLORS = ['#2e2540', '#5a4a72', '#b69ad6', '#ffc0d8'];
+
+  // ---------- tiny vector kit ----------
+  const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const sc = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return sc(a, 1 / l); };
+  const perp = d => {
+    const ref = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    const e1 = norm(cross(d, ref));
+    return [e1, cross(d, e1)];
+  };
+  const bez = (a, b, c, d, t) => {
+    const s = 1 - t;
+    return [0, 1, 2].map(i => s * s * s * a[i] + 3 * s * s * t * b[i] + 3 * s * t * t * c[i] + t * t * t * d[i]);
+  };
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+
+  // ---------- point cloud: x y z nx ny nz mat swayWeight tulipIndex insideDim ----------
+  const STRIDE = 10;
+  const P = [];
+  function pt(p, n, mat, w, tu, dim) {
+    const l = Math.hypot(n[0], n[1], n[2]) || 1;
+    P.push(p[0], p[1], p[2], n[0] / l, n[1] / l, n[2] / l, mat, w, tu, dim);
+  }
+  // Sample a parametric surface f(u,v), normals from finite differences.
+  function surface(f, nu, nv, o) {
+    const e = 1e-3;
+    for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) {
+      const u = i / nu, v = j / nv;
+      const p = f(u, v);
+      let n = cross(sub(f(u + e, v), f(u - e, v)), sub(f(u, v + e), f(u, v - e)));
+      if (!(Math.hypot(n[0], n[1], n[2]) > 1e-12)) n = [0, 1, 0];
+      if (o.flip) n = sc(n, -1);
+      const m = typeof o.mat === 'function' ? o.mat(u, v) : o.mat;
+      const w = typeof o.w === 'function' ? o.w(p) : (o.w || 0);
+      pt(p, n, m, w, o.tu ?? -1, o.dim ?? 1);
+    }
+  }
+  // Sweep a circle along a curve c(s).
+  function tube(c, steps, rad, ring, o) {
+    const e = 1e-3;
+    for (let i = 0; i <= steps; i++) {
+      const s = i / steps, p = c(s);
+      const T = norm(sub(c(Math.min(1, s + e)), c(Math.max(0, s - e))));
+      const [e1, e2] = perp(T);
+      const r = typeof rad === 'function' ? rad(s) : rad;
+      for (let k = 0; k < ring; k++) {
+        const a = (k / ring) * Math.PI * 2;
+        const nn = add(sc(e1, Math.cos(a)), sc(e2, Math.sin(a)));
+        const pp = add(p, sc(nn, r));
+        const w = typeof o.w === 'function' ? o.w(pp) : (o.w || 0);
+        pt(pp, nn, o.mat, w, o.tu ?? -1, 1);
+      }
+    }
+  }
+
+  // ---------- build the bouquet ----------
+  const sway = y => clamp((y + 0.3) / 2.6, 0, 1) ** 2;
+  const CONE_BOT = -2.6;
+  const coneR = y => 0.12 + ((y - CONE_BOT) / 2.4) * 0.95;
+
+  function tulip(k, base, mat, tipMat) {
+    const d = norm([base[0] * 0.55, 1, base[2] * 0.55]);
+    const [e1, e2] = perp(d);
+    const R = 0.3, h = 0.74, w = sway(base[1]), rot = k * 1.3;
+    for (let pi = 0; pi < 6; pi++) {
+      const inner = pi % 2;
+      const phi = rot + (pi * Math.PI) / 3;
+      const ls = inner ? 0.95 : 1.05, hs = inner ? 1.05 : 1, hw = 0.6;
+      const shape = (u, v) => {
+        const uu = v * 2 - 1;
+        const ta = u * (1 - 0.3 * uu * uu);
+        return [uu, ta];
+      };
+      surface((u, v) => {
+        const [uu, ta] = shape(u, v);
+        const th = phi + uu * hw * (1 - 0.3 * ta * ta);
+        const r = R * (0.3 + 0.9 * Math.sin(Math.PI * 0.8 * ta)) * (1 + 0.08 * (1 - uu * uu)) * ls
+                + R * 3 * Math.max(0, ta - 0.8) ** 2;
+        const rho = add(sc(e1, Math.cos(th)), sc(e2, Math.sin(th)));
+        return add(add(base, sc(d, h * hs * ta)), sc(rho, r));
+      }, 30, 20, {
+        mat: tipMat ? (u, v) => (shape(u, v)[1] > 0.72 ? M[tipMat] : M[mat]) : M[mat],
+        w, tu: k, dim: 0.5, flip: true,
+      });
+    }
+    const j = [Math.cos(k * 2.4) * 0.06, CONE_BOT - 0.35, Math.sin(k * 2.4) * 0.06];
+    const c1 = [base[0] * 0.12, -0.9, base[2] * 0.12];
+    const c2 = sub(base, sc(d, 0.9));
+    tube(s => bez(j, c1, c2, base, s), 130, 0.045, 7, { mat: M.stem, w: p => sway(p[1]), tu: k });
+  }
+
+  const heads = [{ pos: [0, 2.05, 0.05], mat: 'red' }];
+  const ring1 = [['pink'], ['yellow', 'red'], ['purple'], ['orange'], ['cream'], ['pink']];
+  ring1.forEach(([m, tip], i) => {
+    const a = (i / 6) * Math.PI * 2 + 0.3;
+    heads.push({ pos: [Math.cos(a) * 0.82, 1.35 + (i % 2 ? 0.25 : -0.05), Math.sin(a) * 0.82], mat: m, tip });
+  });
+  const ring2 = ['red', 'yellow', 'purple', 'pink'];
+  ring2.forEach((m, i) => {
+    const a = (i / 4) * Math.PI * 2 + 0.85;
+    heads.push({ pos: [Math.cos(a) * 1.25, 0.55, Math.sin(a) * 1.25], mat: m });
+  });
+  heads.forEach((t, k) => tulip(k, t.pos, t.mat, t.tip));
+  const NT = heads.length;
+
+  // leaves fanning out of the paper
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.6;
+    const out = [Math.cos(a), 0, Math.sin(a)], side = [-Math.sin(a), 0, Math.cos(a)];
+    const base = [out[0] * 0.72, -0.4, out[2] * 0.72];
+    const dir = norm(add(sc(out, 0.45), [0, 1, 0]));
+    const L = 1.35 + (i % 2) * 0.3, W = 0.2;
+    surface((s, v) => {
+      const vv = v * 2 - 1;
+      const wid = W * Math.pow(Math.max(0, Math.sin(Math.PI * s)), 0.6);
+      let p = add(base, sc(dir, L * s));
+      p = add(p, sc(out, 0.55 * s * s));
+      p = add(p, [0, -0.4 * s * s * s, 0]);
+      p = add(p, sc(side, vv * wid));
+      return add(p, sc(out, -0.08 * vv * vv * (wid / W)));
+    }, 60, 14, { mat: M.leaf, dim: 0.8 });
+  }
+
+  // kraft paper cone with a folded zig-zag rim
+  surface((u, v) => {
+    const th = u * Math.PI * 2;
+    const tri = Math.abs(((th * 5 / Math.PI) % 2) - 1);
+    const top = -0.3 + 0.3 * (1 - tri);
+    const y = CONE_BOT + v * (top - CONE_BOT);
+    const r = coneR(y) * (1 + 0.03 * Math.sin(th * 14));
+    return [Math.cos(th) * r, y, Math.sin(th) * r];
+  }, 170, 72, { mat: M.paper, dim: 0.55, flip: true });
+
+  // ribbon band and bow
+  surface((u, v) => {
+    const th = u * Math.PI * 2, y = -1.25 + 0.15 * v, r = coneR(y) + 0.03;
+    return [Math.cos(th) * r, y, Math.sin(th) * r];
+  }, 120, 6, { mat: M.ribbon, flip: true });
+  const by = -1.17, bz = -(coneR(by) + 0.05);
+  for (const s of [-1, 1]) {
+    tube(q => {
+      const ps = q * Math.PI * 2;
+      return [s * 0.27 * (1 - Math.cos(ps)), by + 0.13 * Math.sin(ps) + 0.05 * (1 - Math.cos(ps)), bz - 0.05 * (1 - Math.cos(ps))];
+    }, 70, 0.045, 7, { mat: M.ribbon });
+    tube(q => [s * (0.04 + 0.2 * q), by - 0.5 * q, bz - 0.06 * q], 40, 0.035, 6, { mat: M.ribbon });
+  }
+  surface((u, v) => {
+    const th = u * Math.PI * 2, ph = v * Math.PI;
+    return [0.075 * Math.sin(ph) * Math.cos(th), by + 0.075 * Math.cos(ph), bz + 0.075 * Math.sin(ph) * Math.sin(th)];
+  }, 24, 12, { mat: M.ribbon, flip: true });
+
+  const PTS = new Float32Array(P);
+  const N = PTS.length / STRIDE;
+
+  // ---------- canvas + grid ----------
+  const screen = document.getElementById('screen');
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const titleEl = document.getElementById('title');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let Wpx = 0, Hpx = 0, cols = 0, rows = 0, cw = 7, chh = 12, fs = 12, glyphRatio = 0.6;
+  let zb = new Float32Array(0), cb = new Uint8Array(0), gb = new Uint8Array(0);
+  let pixel = false, paused = false;
+  let sparks = [];
+
+  function layout() {
+    const r = screen.getBoundingClientRect();
+    Wpx = Math.max(1, r.width); Hpx = Math.max(1, r.height);
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = Math.round(Wpx * dpr); cv.height = Math.round(Hpx * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    fs = clamp(Hpx / 54, 7, 15);
+    if (pixel) { cw = chh = Math.max(4, fs * 0.72); }
+    else { cw = fs * glyphRatio; chh = fs * 1.02; }
+    cols = Math.floor(Wpx / cw); rows = Math.floor(Hpx / chh);
+    zb = new Float32Array(cols * rows);
+    cb = new Uint8Array(cols * rows);
+    gb = new Uint8Array(cols * rows);
+    titleEl.textContent = `tulips — bash — ${cols}×${rows}`;
+    sparks = Array.from({ length: Math.round(cols * rows / 90) }, () => ({
+      c: Math.random() * cols | 0, r: Math.random() * rows | 0,
+      ph: Math.random() * 6.28, sp: 0.6 + Math.random() * 1.6,
+      ch: '.·+*'[Math.random() * 4 | 0],
+    }));
+  }
+
+  function measure() {
+    ctx.font = `700 100px "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace`;
+    glyphRatio = ctx.measureText('M').width / 100 || 0.6;
+    layout();
+  }
+
+  // ---------- render ----------
+  const D = 10, TILT = 0.28;
+  const lv = norm([-0.45, 0.75, -0.6]);
+  const swX = new Float32Array(NT), swZ = new Float32Array(NT);
+  let angle = 0.4, spin = 0, last = performance.now(), dragging = false, time = 0;
+  const SPEED = reduce ? 0.12 : 0.5;
+  const SWAY_AMP = reduce ? 0 : 1;
+
+  function draw(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!paused) {
+      time += dt;
+      if (!dragging) angle += (SPEED + spin) * dt;
+      spin *= Math.exp(-dt * 1.4);
+    }
+    for (let k = 0; k < NT; k++) {
+      swX[k] = Math.sin(time * 0.9 + k * 1.7) * 0.07 * SWAY_AMP;
+      swZ[k] = Math.cos(time * 0.7 + k * 2.3) * 0.05 * SWAY_AMP;
+    }
+    const ca = Math.cos(angle), sa = Math.sin(angle), ct = Math.cos(TILT), st = Math.sin(TILT);
+    const S = Math.min(Hpx / 6.3, Wpx / 4.4);
+    const cx = Wpx / 2, cy = Hpx / 2 - 0.05 * S;
+    zb.fill(0); cb.fill(255);
+
+    for (let i = 0, o = 0; i < N; i++, o += STRIDE) {
+      let x = PTS[o], y = PTS[o + 1], z = PTS[o + 2];
+      const tu = PTS[o + 8];
+      if (tu >= 0) { const w = PTS[o + 7]; x += swX[tu] * w; z += swZ[tu] * w; }
+      const x1 = x * ca + z * sa, z1 = -x * sa + z * ca;
+      const y2 = y * ct + z1 * st, z2 = -y * st + z1 * ct;
+      const ooz = 1 / (z2 + D);
+      const col = ((cx + x1 * D * ooz * S) / cw) | 0;
+      const row = ((cy - y2 * D * ooz * S) / chh) | 0;
+      if (col < 0 || row < 0 || col >= cols || row >= rows) continue;
+      const idx = row * cols + col;
+      if (ooz <= zb[idx]) continue;
+      zb[idx] = ooz;
+      let nx = PTS[o + 3], ny = PTS[o + 4], nz = PTS[o + 5];
+      const nx1 = nx * ca + nz * sa, nz1 = -nx * sa + nz * ca;
+      let ny2 = ny * ct + nz1 * st, nz2 = -ny * st + nz1 * ct;
+      let dim = 1, nx2 = nx1;
+      if (nz2 > 0) { nx2 = -nx2; ny2 = -ny2; nz2 = -nz2; dim = PTS[o + 9]; }
+      let L = nx2 * lv[0] + ny2 * lv[1] + nz2 * lv[2];
+      L = (0.2 + 0.8 * (L > 0 ? L : 0)) * dim;
+      const level = L < 0.3 ? 0 : L < 0.5 ? 1 : L < 0.76 ? 2 : 3;
+      cb[idx] = PTS[o + 6] * 4 + level;
+      gb[idx] = Math.min(11, (L * 12) | 0);
+    }
+
+    ctx.fillStyle = '#0d0a12';
+    ctx.fillRect(0, 0, Wpx, Hpx);
+    ctx.font = `700 ${fs}px "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace`;
+    ctx.textBaseline = 'top';
+
+    // twinkling background
+    for (const s of sparks) {
+      if (s.c >= cols || s.r >= rows || cb[s.r * cols + s.c] !== 255) continue;
+      const b = Math.sin(time * s.sp + s.ph);
+      if (b < 0.1) continue;
+      ctx.fillStyle = SPARK_COLORS[Math.min(3, (b * 4) | 0)];
+      if (pixel) ctx.fillRect(s.c * cw + cw * 0.3, s.r * chh + chh * 0.3, cw * 0.4, chh * 0.4);
+      else ctx.fillText(s.ch, s.c * cw, s.r * chh);
+    }
+
+    let lastColor = -1;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const idx = r * cols + c, ci = cb[idx];
+        if (ci === 255) continue;
+        if (ci !== lastColor) { ctx.fillStyle = COLORS[ci]; lastColor = ci; }
+        if (pixel) ctx.fillRect(c * cw, r * chh, cw - 0.7, chh - 0.7);
+        else ctx.fillText(RAMP[gb[idx]], c * cw, r * chh);
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+
+  // ---------- interaction ----------
+  let lastX = 0;
+  cv.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX; lastX = e.clientX;
+    angle += dx * 0.01;
+    spin = clamp(dx * 0.35, -6, 6);
+  });
+  const endDrag = () => { dragging = false; };
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+
+  const bPause = document.getElementById('bPause'), bMode = document.getElementById('bMode');
+  const togglePause = () => { paused = !paused; bPause.textContent = paused ? 'space · play' : 'space · pause'; };
+  const toggleMode = () => { pixel = !pixel; bMode.textContent = pixel ? 'p · text mode' : 'p · pixel mode'; layout(); };
+  bPause.addEventListener('click', togglePause);
+  bMode.addEventListener('click', toggleMode);
+  addEventListener('keydown', e => {
+    if (e.target.tagName === 'BUTTON' && (e.key === ' ' || e.key === 'Enter')) return;
+    if (e.key === ' ') { e.preventDefault(); togglePause(); }
+    else if (e.key === 'p' || e.key === 'P') toggleMode();
+  });
+
+  // ---------- typed message ----------
+  const typed = document.getElementById('typed');
+  const sig = document.getElementById('sig');
+  if (reduce) { typed.textContent = MESSAGE; sig.hidden = false; }
+  else {
+    let n = 0;
+    const step = () => {
+      typed.textContent = MESSAGE.slice(0, ++n);
+      if (n < MESSAGE.length) setTimeout(step, 70 + Math.random() * 70);
+      else setTimeout(() => { sig.hidden = false; }, 600);
+    };
+    setTimeout(step, 900);
+  }
+
+  new ResizeObserver(layout).observe(screen);
+  measure();
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load('700 12px "IBM Plex Mono"').then(measure).catch(() => {});
+  }
+  requestAnimationFrame(t => { last = t; draw(t); });
+})();
+</script>

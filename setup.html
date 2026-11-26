@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flowers on Your Phone</title>
+<meta name="theme-color" content="#0b0910">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=VT323&display=swap">
+<style>
+/* Layout: one narrow column of numbered steps, styled like the bouquet's terminal. */
+:root {
+  --desk: #0b0910;
+  --card: #120f18;
+  --line: #2a2334;
+  --fg: #ece3f2;
+  --dim: #9a8fa9;
+  --rose: #ff86b0;
+  --leaf: #86e3a6;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --pix: "VT323", "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--desk);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: max(24px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(40px, env(safe-area-inset-bottom, 0px));
+}
+main { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+header { display: flex; gap: 16px; align-items: center; }
+header img { width: 72px; height: 72px; border-radius: 16px; image-rendering: pixelated; flex: none; }
+h1 { font-family: var(--pix); font-weight: 400; font-size: 34px; line-height: 1; margin: 0; color: var(--rose); text-wrap: balance; }
+.sub { color: var(--dim); margin: 4px 0 0; font-size: 13px; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+h2 { font-family: var(--pix); font-weight: 400; font-size: 26px; margin: 0; line-height: 1.1; }
+h2 .n { color: var(--leaf); }
+p { margin: 0; }
+.why { color: var(--dim); font-size: 13px; }
+ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 8px; }
+li::marker { color: var(--leaf); font-weight: 700; }
+b { color: var(--rose); font-weight: 700; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  font: 700 15px var(--mono);
+  color: var(--desk); background: var(--rose);
+  border: 0; border-radius: 8px; padding: 10px 16px;
+  text-decoration: none; cursor: pointer;
+}
+.btn.alt { background: none; color: var(--fg); border: 1px solid var(--line); }
+.btn:focus-visible { outline: 2px solid var(--leaf); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ok { color: var(--leaf); font-size: 13px; min-height: 1.2em; }
+pre { margin: 0; max-height: 140px; overflow: auto; background: var(--desk); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 11px; line-height: 1.45; color: var(--dim); white-space: pre; }
+.preview { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+.preview img { width: 100%; border-radius: 14px; border: 1px solid var(--line); display: block; }
+footer { text-align: center; font-family: var(--pix); font-size: 22px; color: var(--dim); }
+footer span { color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icons/icon-512.png" alt="">
+    <div>
+      <h1>put your flowers on your phone</h1>
+      <p class="sub">two minutes, no tech skills needed</p>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="n">1.</span> the app icon</h2>
+    <p class="why">An icon on your home screen that opens the spinning bouquet full screen.</p>
+    <ol>
+      <li>Open this website in <b>Safari</b> (the compass app).</li>
+      <li>Tap the <b>Share</b> button (the square with the arrow pointing up).</li>
+      <li>Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</li>
+    </ol>
+    <div class="row"><a class="btn alt" href="./">open the bouquet</a></div>
+  </section>
+
+  <section>
+    <h2><span class="n">2.</span> the widget</h2>
+    <p class="why">A bouquet that sits on your home screen all day and slowly turns: a new angle every 15 minutes.</p>
+    <div class="preview">
+      <img src="frames/small-00.png" alt="Small widget preview">
+      <img src="frames/medium-00.png" alt="Medium widget preview">
+    </div>
+    <ol>
+      <li>Get the free app <b>Scriptable</b> from the App Store.
+        <div class="row" style="margin-top:8px"><a class="btn alt" href="https://apps.apple.com/app/scriptable/id1405459188" target="_blank" rel="noopener">get Scriptable</a></div>
+      </li>
+      <li>Tap this button to copy the flower code:
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="copy" type="button">copy flower code</button>
+          <span class="ok" id="copied" aria-live="polite"></span>
+        </div>
+      </li>
+      <li>Open <b>Scriptable</b>, tap the <b>+</b> in the top corner, tap the empty page, and <b>Paste</b>.</li>
+      <li>Tap the title at the top, rename it <b>Flowers</b>, then tap <b>Done</b>.</li>
+      <li>Go to your home screen. Press and hold an empty spot until the apps wiggle, then tap <b>Edit</b> (or the <b>+</b>) and choose <b>Add Widget</b>.</li>
+      <li>Search for <b>Scriptable</b>, pick a size (the wide one shows your message), and tap <b>Add Widget</b>.</li>
+      <li>Press and hold the new widget, tap <b>Edit Widget</b>, and set <b>Script</b> to <b>Flowers</b>. Tap outside to finish.</li>
+    </ol>
+    <pre id="code" aria-label="Flower code">loading…</pre>
+  </section>
+
+  <section>
+    <h2><span class="n">3.</span> or just a picture</h2>
+    <p class="why">No app needed. Press and hold the picture, tap <b>Save to Photos</b>, and use it as a wallpaper or in the Photos widget.</p>
+    <img src="frames/large-00.png" alt="The tulip bouquet with the words some flowers for my flower" style="width:100%;border-radius:14px;border:1px solid var(--line)">
+  </section>
+
+  <footer>to: <span>Hargun</span> &nbsp; love: <span>Divij</span></footer>
+</main>
+<script>
+(() => {
+  const pre = document.getElementById('code');
+  const btn = document.getElementById('copy');
+  const msg = document.getElementById('copied');
+  let code = '';
+  fetch('widget.js').then(r => r.text()).then(t => { code = t; pre.textContent = t; })
+    .catch(() => { pre.textContent = 'Could not load the code. Check your internet connection and reload.'; });
+  btn.addEventListener('click', async () => {
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      msg.textContent = 'copied! now open Scriptable';
+    } catch (e) {
+      const range = document.createRange();
+      range.selectNodeContents(pre);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      msg.textContent = 'selected. tap Copy';
+    }
+  });
+})();
+</script>
+</body>
+</html>
